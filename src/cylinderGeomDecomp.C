@@ -57,6 +57,8 @@ struct vectorLessOpCylinder
     const UList<vector>& values;
     const vector rotAxis_;  // the rotational axis
     vector radVec_;         // the radial vector
+    Tensor<scalar> transMatrix_;    // transformation matrix to the coordinate 
+                                    // system of [radVec1,radVec2,rotAxis]
     cycDir sortCmpt;
 
     vectorLessOpCylinder(const UList<vector>& list, const vector& rotAxis, cycDir cmpt = cycDir::axial)
@@ -70,6 +72,13 @@ struct vectorLessOpCylinder
         radVec_.z() = 
             -copysign(rotAxis_.x(),rotAxis_.z())
             -copysign(rotAxis_.y(),rotAxis_.z());
+
+        // Get the second radial vector by taking the cross product
+        vector radVec2 = radVec_^rotAxis_;
+        Tensor<scalar> temp(radVec_,radVec2,rotAxis_);
+        transMatrix_ = temp.T();    // transpose of orthogonal matrix is the 
+                                    // inverse
+
     }
 
     scalar copysign(const scalar& a,const scalar& b)
@@ -112,12 +121,10 @@ struct vectorLessOpCylinder
             }
             case cycDir::circumferential:
             {
-                // Get a radial vector
+                // Transform coordinates
+                vector pA = transMatrix_&values[a];
+                vector pB = transMatrix_&values[b];
 
-                // === TESTING  ===
-                // Hard code the angle
-                const vector& pA = values[a];
-                const vector& pB = values[b];
                 scalar radA = atan2(pA.x(),pA.y());
                 scalar radB = atan2(pB.x(),pB.y());
                 return radA < radB;
@@ -373,6 +380,35 @@ Foam::labelList Foam::cylinderGeomDecomp::decomposeOneProc
     return finalDecomp;
 }
 
+Foam::vector
+Foam::cylinderGeomDecomp::readRotAxis(const dictionary& dict)
+{
+    // Check if the entry is a word
+    word token = dict.get<word>("rotAxis");
+    if (token == "x")
+    {
+        vector x(1,0,0);
+        return x;
+    }
+    else if (token == "y")
+    {
+        vector y(0,1,0);
+        return y;
+    }
+    else if (token == "z")
+    {
+        vector z(0,0,1);
+        return z;
+    }
+    else
+    {
+        // If it is not a valid token, try to read it as an vector
+        vector rotAxis = dict.get<vector>("rotAxis");
+        // normalize
+        rotAxis /=mag(rotAxis);
+        return rotAxis;
+    }
+}
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -383,7 +419,7 @@ Foam::cylinderGeomDecomp::cylinderGeomDecomp
 )
 :
     geomDecomp(typeName, decompDict, regionName),
-    rotAxis_(decompDict.lookupOrDefault<vector>("rotAxis",vector(0,0,1)))
+    rotAxis_(readRotAxis(coeffsDict_))
 {}
 
 

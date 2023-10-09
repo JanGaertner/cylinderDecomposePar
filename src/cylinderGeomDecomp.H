@@ -28,13 +28,30 @@ Class
     Foam::cylinderGeomDecomp
 
 Description
-    Simple geometric decomposition, selectable as \c simple
+    Simple cylinder decomposition, selectable as \c cylinder
+
+    Usage
+
+    In the system/decomposeParDict set:
+
+        numberOfSubdomains 64;
+
+        method         cylinder;
+
+        cylinderCoeffs
+        {
+            n       (4 4 4);    // axial, radial, circumferential
+            rotAxis z;          // rotation axis
+        }
+
+
+
 
     Method coefficients:
     \table
         Property  | Description                             | Required | Default
-        n         | (nx ny nz)                              | yes |
-        order     | order of operation (unused)             | no  | xyz
+        n         | (nAxial nRadial nCircumferential)       | yes |
+        rotAxis   | Select axis of rotation                 | yes |
         delta     | delta (jitter) for rotation matrix      | no  | 0.001
         transform | cartesian coordinate transformation     | no  |
     \endtable
@@ -98,6 +115,9 @@ class cylinderGeomDecomp
             const pointField& points,
             const scalarField& weights
         ) const;
+
+        //- Set the rotation axis from word or vector entry
+        vector readRotAxis(const dictionary& dict);
 
 
 public:
